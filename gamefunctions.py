@@ -1,4 +1,21 @@
 import random
+shop_inventory = [
+    {"name": "sword" ,"type": "weapon","powerBoost": 3, "hits": 7, "currentHits": 7, "equipped":True, "price": 45},
+    {"name": "blocker","type": "shield","powerBoost": 2, "hits": 5 , "currentHits": 5,  "equipped":True, "price":25},
+    {"name": "cat", "type":"sidekick","powerBoost":4, "hits": 80, "equipped":False,"price":0},
+    {"name": "nutella","type":"food", "equipped":True, "powerBoost": 6, "effect": "auto_defeat_monster", "price": 50},
+    {"name": "apple", "type": "food", "equipped":True, "price": 20},
+    {"name": "potion", "type": "food", "equipped":True, "powerBoost": 2, "price": 35}
+]
+state = {
+    "player_name":"Humphrey",
+    "your_dablooms": 7000,
+    "player_pockets": [
+        {"name": "sword","type": "weapon","powerBoost": 3, "hits": 7 , "currentHits": 7, "equipped":True},
+        {"name": "blocker","type": "shield","powerBoost": 2, "hits": 5 , "currentHits": 5, "equipped":True},
+                {"name": "nutella","type": "food","equipped":True, "effect": "auto_defeat_monster", "powerBoost": 6}
+        ]
+}
 def purchase_item(itemPrice, startingMoney, quantityToPurchase=1):
     max_affordable = startingMoney // itemPrice
     if max_affordable < quantityToPurchase:
@@ -40,19 +57,60 @@ def new_random_monster():
         "money": money
     }     
     return monster
-def print_shop_menu(item1Name, item1Price, item2Name, item2Price):
+def equip():
+    print("What type of item would you like to equip?")
+    item_type = input("Type (weapon, shield, food): ").lower()
+    
+    matching_items = []
+    for item in state["player_pockets"]:
+        if item.get("type") == item_type:
+            matching_items.append(item)
+    if not matching_items:
+        print("Invalid 'type' choice. Try again.")
+        return
+    
+    print(f"\nYour {item_type}s:")
+    
+    for i, item in enumerate(matching_items, start=1):
+        print(f"{i}) {item['name']}")
+
+    choice = int(input("Choose an item number: "))
+    if 1 <= choice <= len(matching_items):
+        chosen_item = matching_items[choice - 1]
+        for item in state["player_pockets"]:
+            if item.get("type") == item_type:
+                item["equipped"] = False
+        chosen_item["equipped"] = True
+        print(f"You equipped the {chosen_item['name']}!")
+        if "powerBoost" in chosen_item:
+            print(f"You gained +{chosen_item['powerBoost']} power boost.")
+        if "effect" in chosen_item:
+            print(f"The effect: {chosen_item['effect']}.")
+    else:
+        print("Invalid choice.")
+
+def print_shop_menu(shop_inventory):
     """
     This function creates a bordered menu.
         Paramaters:
-            item1Name (str): imputs first name
-            item1Price (int): imputs first price (rounds to two decimal places)
-            item2Name (str): imputs second name
-            item2Price (int): imputs second price (rounds to two decimal places)
+            shop_inventory(int and str)
     """
-    print ("//--------------------\\")
-    print(f"| {item1Name:<12}${item1Price:>7.2f} |")
-    print(f"| {item2Name:<12}${item2Price:>7.2f} |")
+    print("//--------------------\\")
+    for item in shop_inventory:
+        print(f"| {item['name']:<12}${item['price']:>7.2f} |")
     print("\\--------------------//")
+
+def get_equipped_weapon():
+    for item in state["player_pockets"]:
+        if item.get("type") == "weapon" and item.get("equipped") == True:
+            return item
+    return None
+
+def get_auto_defeat_item():
+    for item in state["player_pockets"]:
+        if item.get("effect") == "auto_defeat_monster":
+            return item
+    return None
 
 def fight_monster(your_health, your_dablooms):
     monster = new_random_monster()
@@ -66,22 +124,46 @@ def fight_monster(your_health, your_dablooms):
         print(f"\nYour health: {your_health} | Monster health: {monster_health}")
         print("1) Joust")
         print("2) Flee")
+        print("3) Equip power-up")
 
-        action = input("Choose 1 or 2: ")
+        action = input("Choose 1 - 3: ")
 
         if action == "1":
-            damage_to_monster = random.randint(1, 6)
-            damage_to_player = random.randint(1, 4)
 
-            monster_health -= damage_to_monster
+            defeat_item = get_auto_defeat_item()
+            if defeat_item:
+                print(f"You used {defeat_item['name']}. The monster is instantly defeated!")
+                monster_health = 0
+                state["player_pockets"].remove(defeat_item)
+                break
+            weapon = get_equipped_weapon()
+            if weapon:
+                powerBoost = weapon.get("powerBoost", 0)
+                weapon["currentHits"] -= 1
+                print(f"Your {weapon['name']} looses 1 durability. Remaining hits: {weapon['currentHits']}")
+                if weapon["currentHits"] <= 0:
+                    print(f"Your {weapon['name']} breaks!")
+                    state["player_pockets"].remove(weapon)
+            else:
+                powerBoost = 0
+            damage_to_monster = random.randint(1, 6)
+            total_damage = damage_to_monster + powerBoost
+            monster_health -= total_damage
+            damage_to_player = random.randint(1, 4)
             your_health -= damage_to_player
 
             print(f"You stabbed the monster for {damage_to_monster}!")
+            if monster_health > 0:
+                damage_to_player = random.randint(1,4)
+                your_health -= damage_to_player
             print(f"The monster hits you for {damage_to_player}!")
+            print(f"Your health: {your_health} | Monster health: {monster_health}")
 
         elif action == "2":
             print("You escaped!")
             return your_health, your_dablooms
+        elif action == "3":
+            equip()
         else:
             print("Invalid Choice. Try again.")
 def eat(your_health,your_dablooms):
@@ -103,6 +185,53 @@ def eat(your_health,your_dablooms):
         return your_health, your_dablooms
     else:
         print("Invalid Choice. Try again.")
+
+def shop(item_name):
+    print(state["your_dablooms"])
+    print(state["player_pockets"])
+    for object in shop_inventory:
+        if object["name"] == item_name:
+            if state["your_dablooms"] >= object["price"]:
+                state["your_dablooms"] -= object["price"]
+                state["player_pockets"].append(object.copy())
+                print("You bought(a)", item_name)
+            else:
+                print("Not enough dablooms.")
+
+
+def equip():
+    print("What type of item would you like to equip?")
+    item_type = input("Type (weapon, shield, food): ").lower()
+    
+    matching_items = []
+    for item in state["player_pockets"]:
+        if item.get("type") == item_type:
+            matching_items.append(item)
+    if not matching_items:
+        print("Invalid 'type' choice. Try again.")
+        return
+    
+    print(f"\nYour {item_type}s:")
+    
+    for i, item in enumerate(matching_items, start=1):
+        print(f"{i}) {item['name']}")
+
+    choice = int(input("Choose an item number: "))
+    if 1 <= choice <= len(matching_items):
+        chosen_item = matching_items[choice - 1]
+        for item in state["player_pockets"]:
+            if item.get("type") == item_type:
+                item["equipped"] = False
+        chosen_item["equipped"] = True
+        print(f"You equipped the {chosen_item['name']}!")
+        if "powerBoost" in chosen_item:
+            print(f"You gained +{chosen_item['powerBoost']} power boost.")
+        if "effect" in chosen_item:
+            print(f"The effect: {chosen_item['effect']}.")
+    else:
+        print("Invalid choice.")
+
+        
     
     
     
